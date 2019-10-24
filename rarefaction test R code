@@ -1,0 +1,123 @@
+
+
+######################################## Step 1 #######################################
+
+# created a pooled dataset that we will be using for our test 
+#pooled_data_dataframe<- rbind(control_data,treatment_data)
+control_data <- c()
+treatment_data <- c()
+pooled_data_dataframe <- c(control_data,treatment_data)
+
+
+delta_null_vec<-c() # these vectors hold the differences in the null pooled then partitioned data and the real data
+delta_real_vec<-c()
+p_values <- c()
+for( x in 1:length(treatment_data)){
+	cat("processing",x,"\n")
+######################################## Step 2 ########################################
+## set "individuals_sampled" which is how many individuals you want to sample so the x-axis of the rarefaction
+# create "hits" to hold the number of times our real difference is bigger than the null data difference 
+# set how many times you want to resample the data
+
+individuals_sampled <- x # sampling x individuals here on the x axis
+Num_resamples <- 100 # how many times are we going to resample the data
+hits <- 0 # this will be used to calculate the p-value
+
+	for( y in 1:Num_resamples){ # start of loop
+				
+######################################## Step 3 ########################################
+		#### Now getting a mean
+		## Now sample individuals_sampled individuals from the lists of observations 
+		control_draws_real <-c()
+		treat_draws_real <-c()
+		
+		for( qq in 1:100){
+
+		## Find the number of species in each sample by finding the number of unique species are in each sub sample. 
+		real_control_sample <-length(unique(sample(control_data,individuals_sampled,replace=T)))
+		real_treatment_sample <-length(unique(sample(treatment_data,individuals_sampled,replace=T)))
+		
+		# Build the vector to keep those values
+		control_draws_real <-c(control_draws_real, real_control_sample)
+		treat_draws_real <- c(treat_draws_real, real_treatment_sample )
+	}
+	
+		# Take the difference between the number of species in these samples (this is our delta that we compare to the null data)
+		Delta_real <-  mean(control_draws_real) - mean(treat_draws_real) 
+		
+######################################## Step 4 ########################################
+## Create the null data by sampling the pooled_data_dataframe. I do this by creating a vector of random numbers the size of the control or treatment data and subset the pooled_data_dataframe. I esentially sampling with replacement random rows from the pooled data and building new data sets that are the same size as our control and treatment data. 
+
+		size_control_data <- length(control_data) # size of control data
+		size_treatment_data <- length(treatment_data)# size of treatment data		
+
+		control_draws_null <-c()
+		treat_draws_null <-c()
+		for( z in 1:100){ # start of getting mean	
+			
+######################################## Step 5 ########################################
+
+## This partitions the data randomly and does not change the overall abundances of species 		
+null_treatment_sample <- sample(length(pooled_data_dataframe), size_treatment_data,replace=F)
+
+indexer <- seq(1,length(pooled_data_dataframe),1)
+null_control_sample <- c()
+for( ttyl in indexer){
+	if( sum(indexer[ttyl] == null_treatment_sample) == 0 ){
+		null_control_sample <-c(null_control_sample, ttyl)
+	}	
+}
+Null_control_data <- pooled_data_dataframe[null_control_sample ]
+Null_treatment_data <- pooled_data_dataframe[null_treatment_sample ]
+		
+
+
+
+		## This then randomly samples the paritioned data 
+		random_draw_treatment_NULL <- length(unique(sample( Null_treatment_data, individuals_sampled,replace=T))) 
+		random_draw_control_NULL <- length(unique(sample( Null_control_data, individuals_sampled,replace=T))) # drawing individuals
+
+		# store the values
+		control_draws_null <-c(control_draws_null, random_draw_control_NULL)
+		treat_draws_null <-c(treat_draws_null, random_draw_treatment_NULL)	
+
+		} # end of getting mean
+		
+######################################## Step 6 ########################################
+# Here I calculate the differece from data made of the pooled dataset
+		Delta_null <- mean(control_draws_null) - mean(treat_draws_null)
+		
+######################################## Step 7 ########################################
+# if the real difference is smaller than the difference from the null data add 1 to "hits"
+		if ( Delta_null > Delta_real ){
+		hits <- hits + 1
+		}
+
+	}# end of main loop
+	
+	delta_null_vec <-c(delta_null_vec, Delta_null)
+	delta_real_vec <-c(delta_real_vec, Delta_real)
+	
+######################################## Step 8 ########################################
+## calculate p-value
+	
+	p_values <- c(p_values, hits/Num_resamples )
+	
+	}
+	
+	
+min(p_values)
+max(p_values)
+mean(p_values)
+
+## here are the pvalues across the range of resampling
+plot(p_values,yaxt="n",xlab="",ylab="",cex=0.5,pch=19)
+points(p_values,type="l")
+abline(h=0.05,col="red",lty=2)
+mtext("p-value",side=2,line=2.8)
+mtext("Individuals sampled",side=1,line=2.2)
+axis(2,las=2)
+
+
+
+
